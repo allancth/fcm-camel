@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+       xmlns:camel="http://camel.apache.org/schema/spring" 
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd 
+                           http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <bean class="org.apache.camel.spring.spi.BridgePropertyPlaceholderConfigurer">
+        <property name="location" value="classpath:xmpp.properties" />
+    </bean>
+
+    <bean id="fcmConnectionConfigFactory" class="org.github.allancth.fcm.camel.FcmConnectionConfigFactory">
+        <property name="host" value="${xmpp.host}" />
+        <property name="port" value="${xmpp.port}" />
+        <property name="serviceName" value="${xmpp.serviceName}" />
+    </bean>
+
+    <bean id="fcmConnectionConfig" class="org.jivesoftware.smack.ConnectionConfiguration" 
+          factory-bean="fcmConnectionConfigFactory" factory-method="create" />
+
+    <bean id="objectMapper" class="com.fasterxml.jackson.databind.ObjectMapper" />
+
+    <bean id="fcmProcessor" class="org.github.allancth.fcm.camel.FcmProcessor">
+        <property name="objectMapper" ref="objectMapper" />
+    </bean>
+
+    <camelContext id="camelContext" xmlns="http://camel.apache.org/schema/spring">
+        <endpoint id="xmppEndpoint" uri="xmpp://{{xmpp.host}}:{{xmpp.port}}?user={{xmpp.user}}&amp;password={{xmpp.key}}&amp;serviceName={{xmpp.serviceName}}&amp;resource={{xmpp.serviceName}}&amp;connectionConfig=#fcmConnectionConfig&amp;doc=true" />
+
+        <route id="incomingRoute">
+            <description>XMPP entry point</description>
+            <from uri="ref:xmppEndpoint" />
+
+            <bean ref="fcmProcessor" method="unmarshal" />
+
+            <choice>
+                <when>
+                    <simple>${exchangeProperty.operation} == "ack"</simple>
+                    <log message="ACK; Body: ${in.body} Headers: ${in.headers}" />
+                </when>
+                <when>
+                    <simple>${exchangeProperty.operation} == "nack"</simple>
+                    <log message="NACK; Body: ${in.body} Headers: ${in.headers}" />
+                </when>
+                <when>
+                    <simple>${exchangeProperty.operation} == "control"</simple>
+                    <log message="CONTROL; Body: ${in.body} Headers: ${in.headers}" />
+                </when>
+                <otherwise>
+                    <multicast parallelProcessing="true">
+                        <to uri="direct:buildResponseRoute" />
+                        <to uri="direct:ackMessageRoute" />
+                    </multicast>
+                </otherwise>
+            </choice>
+        </route>
+
+        <route id="buildResponseRoute">
+            <description>The route will build an echo response</description>
+            <from uri="direct:buildResponseRoute" />
+
+            <bean ref="fcmProcessor" method="marshal" />
+
+            <to uri="ref:xmppEndpoint" />
+        </route>
+
+        <route id="ackMessageRoute">
+            <description>This route is used to acknowledge messages that have been received</description>
+            <from uri="direct:ackMessageRoute" />
+
+            <bean ref="fcmProcessor" method="ack" />
+
+            <to uri="ref:xmppEndpoint" />
+        </route>
+    </camelContext>
+</beans>
