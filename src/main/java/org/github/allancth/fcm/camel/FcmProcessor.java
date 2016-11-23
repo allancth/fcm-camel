@@ -18,6 +18,7 @@ package org.github.allancth.fcm.camel;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.component.xmpp.XmppConstants;
@@ -71,17 +72,19 @@ public class FcmProcessor {
         final String message = (String) data.get("message");
         final String type = (String) data.get("type");
 
-        LOG.debug("[{}] We have just received a message from {}, and the message is '{}'", registrationId, name, message);
+        LOG.debug("[{}] We have just received a {} request from {}, and the message is '{}'", registrationId, type, name, message);
 
         final FcmMessage out = new FcmMessage();
+        out.setTo(registrationId);
+        out.setMessage_id(UUID.randomUUID().toString());
+        out.setTime_to_live(600L);
+
         if ("MESSAGE".equals(type)) {
-            out.setTo(registrationId);
             out.addData("response", "Hello " + name + ". I've received your message '" + message + "'.");
 
         } else if ("NOTIFICATION".equals(type)) {
-            out.setTo(registrationId);
-            out.setNotificationTitle("Greetings");
-            out.setNotificationBody("Hello " + name + ". I've received your message '" + message + "'.");
+            out.setNotificationTitle("Greetings from camel-xmpp");
+            out.setNotificationBody("Hello " + name + ".");
         }
 
         final String json = objectMapper.writeValueAsString(out);
@@ -94,7 +97,6 @@ public class FcmProcessor {
         final String messageId = (String) exchange.getProperty(FcmMessage.MESSAGE_ID);
 
         final FcmMessage fcmMessage = new FcmMessage();
-        fcmMessage.removeData();
         fcmMessage.setTo(from);
         fcmMessage.setMessage_id(messageId);
         fcmMessage.setMessage_type(FcmProcessor.MESSAGE_TYPE_ACK);

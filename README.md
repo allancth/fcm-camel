@@ -1,5 +1,5 @@
 # fcm-camel
-Connectivity to Firebase Cloud Messaging (FCM) with a simple XMPP client that 
+Connectivity to Firebase Cloud Messaging (FCM) with a sample XMPP client that 
 runs on Apache Camel, packaged as a WAR and is ready to be deployed to a 
 servlet container.
 
