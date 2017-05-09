@@ -11,7 +11,7 @@ See also [fcm-android](https://github.com/allancth/fcm-android).
 3. JDK 8 + Maven 3.3.9
 
 ## Configuration
-1. Edit xmpp.properties. Replace sender ID and token.
+1. Edit [xmpp.properties](https://github.com/allancth/fcm-camel/blob/master/src/main/resources/xmpp.properties). Replace sender ID and token.
 
 ## Run
     mvn clean tomcat7:run
